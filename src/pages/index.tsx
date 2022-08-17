@@ -19,12 +19,19 @@ import type { NextPage } from "next";
 import Head from "next/head";
 import { trpc } from "../utils/trpc";
 import Comments from "../../components/Comments";
+import { getSession, signIn, signOut, useSession } from "next-auth/react";
 
 const Home: NextPage = () => {
   const { data, isLoading } = trpc.useQuery([
     "example.hello",
     { text: "from tRPC" },
   ]);
+
+  const { data: session, status } = useSession();
+
+  if (status === "loading") {
+    return <main>Loading...</main>;
+  }
 
   return (
     <>
@@ -102,23 +109,33 @@ const Home: NextPage = () => {
         </Box>
         <Divider my="2" />
 
-        {/* default */}
-        <Center my="4">
-          <Button w="container.lg" borderRadius="3xl" px="6" bg="#1A8CD8">
-            Login to reply
-          </Button>
-        </Center>
+        {session ? (
+          <HStack m="4">
+            <Avatar
+              name="Dan Abrahmov"
+              src="https://bit.ly/dan-abramov"
+              onClick={() => signOut()}
+            />
 
-        {/* <HStack m="4"> */}
-        {/* <Avatar name="Dan Abrahmov" src="https://bit.ly/dan-abramov" /> */}
+            <Input placeholder="Tweet your reply" border="none" />
 
-        {/* logged in */}
-        {/* <Input placeholder="Tweet your reply" border="none" /> */}
-
-        {/* <Button borderRadius="3xl" px="6" bg="#1A8CD8"> */}
-        {/* Reply */}
-        {/* </Button> */}
-        {/* </HStack> */}
+            <Button borderRadius="3xl" px="6" bg="#1A8CD8">
+              Reply
+            </Button>
+          </HStack>
+        ) : (
+          <Center my="4">
+            <Button
+              onClick={() => signIn("twitter")}
+              w="container.lg"
+              borderRadius="3xl"
+              px="6"
+              bg="#1A8CD8"
+            >
+              Login to reply
+            </Button>
+          </Center>
+        )}
 
         <Divider />
 
