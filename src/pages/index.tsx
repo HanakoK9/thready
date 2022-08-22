@@ -8,7 +8,6 @@ import {
   Flex,
   HStack,
   Icon,
-  Input,
   Text,
 } from "@chakra-ui/react";
 import { TbMessageCircle2 } from "react-icons/tb";
@@ -18,20 +17,45 @@ import { GoVerified } from "react-icons/go";
 import type { NextPage } from "next";
 import Head from "next/head";
 import { trpc } from "../utils/trpc";
-import Comments from "../../components/Comments";
-import { getSession, signIn, signOut, useSession } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
+import { useTweet } from "../hooks/useTweet";
+import { useState } from "react";
+import { ReplyList } from "../components/ReplyList";
+import { ReplyForm } from "../components/ReplyForm";
 
 const Home: NextPage = () => {
-  const { data, isLoading } = trpc.useQuery([
-    "example.hello",
-    { text: "from tRPC" },
-  ]);
+  const [error, setError] = useState("");
+  const { data: session } = useSession();
 
-  const { data: session, status } = useSession();
+  const { rootReplies } = useTweet();
 
-  if (status === "loading") {
-    return <main>Loading...</main>;
-  }
+  const { invalidateQueries } = trpc.useContext();
+  const createReply = trpc.useMutation(["protectedTweet.postReply"], {
+    // async onSuccess() {
+    //   // Refetches posts after a comment is added
+    //   await invalidateQueries(["post.getById"]);
+    // },
+  });
+
+  const handleReplyCreate = async (message: string) => {
+    if (message.trim().length === 0) {
+      setError("You need to specify a message!");
+      return;
+    }
+
+    if (message.trim().length < 4) {
+      setError("Message is too short!");
+      return;
+    }
+
+    return await createReply
+      .mutateAsync({
+        message,
+      })
+      .then(() => {
+        setError("");
+      });
+  };
 
   return (
     <>
@@ -110,19 +134,11 @@ const Home: NextPage = () => {
         <Divider my="2" />
 
         {session ? (
-          <HStack m="4">
-            <Avatar
-              name="Dan Abrahmov"
-              src="https://bit.ly/dan-abramov"
-              onClick={() => signOut()}
-            />
-
-            <Input placeholder="Tweet your reply" border="none" />
-
-            <Button borderRadius="3xl" px="6" bg="#1A8CD8">
-              Reply
-            </Button>
-          </HStack>
+          <ReplyForm
+            onSubmit={handleReplyCreate}
+            loading={createReply.isLoading}
+            error={error}
+          />
         ) : (
           <Center my="4">
             <Button
@@ -139,10 +155,7 @@ const Home: NextPage = () => {
 
         <Divider />
 
-        <Comments />
-        <Comments />
-        <Comments />
-        <Comments />
+        <ReplyList replies={rootReplies} />
       </Container>
     </>
   );
